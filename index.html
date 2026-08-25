@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>छत्रपती संभाजीनगर बस लाईव्ह</title>
+    
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1d4ed8">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+      }
+    </script>
+    
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --primary: #1d4ed8;
+            --primary-hover: #1e40af;
+            --accent: #16a34a;
+            --border: #cbd5e1;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            background: white;
+            color: var(--primary);
+        }
+
+        .main-container {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 0 12px;
+        }
+
+        .search-card, .result-card, .timetable-card, .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border);
+            background: #f8fafc;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-sub);
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .search-section { display: none; }
+        .search-section.active { display: block; }
+
+        .input-group {
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 6px;
+            font-size: 15px;
+            color: var(--text-main);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            box-sizing: border-box;
+            background: #fff;
+            color: #000;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .gps-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 16px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .suggestions-list {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            z-index: 9999;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .suggestion-item {
+            padding: 14px 16px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .suggestion-item:hover {
+            background-color: #eff6ff;
+            color: var(--primary);
+        }
+
+        .search-submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);
+        }
+
+        .fav-btn {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        #map {
+            height: 280px;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            border: 2px solid var(--border);
+            display: none;
+        }
+
+        .result-card, .timetable-card { display: none; }
+        
+        .bus-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .bus-route {
+            color: var(--text-sub);
+            font-size: 14px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        /* गर्दीची स्थिती बॅज */
+        .crowd-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .crowd-low { background: #dcfce7; color: #166534; }
+        .crowd-medium { background: #fef9c3; color: #854d0e; }
+        .crowd-high { background: #fee2e2; color: #991b1b; }
+
+        .timeline {
+            position: relative;
+            margin-left: 10px;
+            padding-left: 20px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .stop-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .stop-item::before {
+            content: '';
+            position: absolute;
+            left: -27.5px;
+            top: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--accent);
+        }
+
+        .stop-item.current::before { 
+            background: var(--accent); 
+            box-shadow: 0 0 0 5px rgba(22, 163, 74, 0.2);
+        }
+
+        .stop-name { font-weight: 700; font-size: 15px; }
+        .stop-time { font-size: 13px; color: var(--text-sub); margin-top: 2px; }
+
+        .current-badge {
+            background-color: #ea580c;
+            color: white;
+            padding: 2px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            margin-left: 6px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .timetable-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .timetable-table th, .timetable-table td {
+            border: 1px solid var(--border);
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .timetable-table th {
+            background-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🚍 संभाजीनगर बस लाईव्ह</h1>
+        <div class="header-controls">
+            <button class="btn" onclick="toggleTimetable()">📅 वेळापत्रक</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- वेळापत्रक कार्ड -->
+        <div class="timetable-card" id="timetableCard">
+            <h3 style="color: var(--primary); margin-top: 0; font-size: 16px;">संपूर्ण बस वेळापत्रक</h3>
+            <table class="timetable-table">
+                <thead>
+                    <tr>
+                        <th>बस</th>
+                        <th>मार्ग</th>
+                        <th>वेळ</th>
+                    </tr>
+                </thead>
+                <tbody id="timetableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- मुख्य शोध कार्ड (टॅब सिस्टम) -->
+        <div class="search-card">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('route')">मार्कानुसार</button>
+                <button class="tab-btn" onclick="switchTab('busNo')">बस नंबरनुसार</button>
+            </div>
+
+            <!-- १. मार्कानुसार शोध -->
+            <div id="routeSearchSection" class="search-section active">
+                <div class="input-group">
+                    <label for="sourceInput">📍 कुठून निघायचे आहे?</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="sourceInput" placeholder="उदा. सिडको" oninput="filterSuggestions('sourceInput', 'sourceSuggestions')" autocomplete="off">
+                        <button class="gps-btn" onclick="getNearbyStops()" title="नजीकचे स्टॉप्स शोधा">📍</button>
+                    </div>
+                    <div id="sourceSuggestions" class="suggestions-list"></div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="destInput">🏁 कुठे जायचे आहे?</label>
+                    <input type="text" id="destInput" placeholder="उदा. क्रांती चौक" oninput="filterSuggestions('destInput', 'destSuggestions')" autocomplete="off">
+                    <div id="destSuggestions" class="suggestions-list"></div>
+                </div>
+
+                <button class="search-submit-btn" onclick="findBusRoute()">बस शोधा</button>
+                <button class="fav-btn" onclick="saveFavoriteRoute()">⭐ हा मार्ग सेव्ह करा (Favorite)</button>
+            </div>
+
+            <!-- २. बस नंबरनुसार शोध -->
+            <div id="busNoSearchSection" class="search-section">
+                <div class="input-group">
+                    <label for="busSelect">🚍 बस निवडा:</label>
+                    <select id="busSelect">
+                        <option value="101">बस १०१ - सिडको एक्स्प्रेस</option>
+                        <option value="102">बस १०२ - रेल्वे स्पेशल</option>
+                        <option value="103">बस १०३ - एन-१ स्पेशल</option>
+                    </select>
+                </div>
+                <button class="search-submit-btn" onclick="findBusByNumber()">बसची स्थिती पहा</button>
+            </div>
+        </div>
+
+        <!-- सेव्ह केलेले आवडीचे मार्ग दर्शवणारी पट्टी -->
+        <div class="feature-card" id="favCard" style="display:none;">
+            <h4 style="margin:0 0 8px 0; color:var(--primary); font-size:15px;">⭐ तुमचे सेव्ह केलेले मार्ग:</h4>
+            <div id="favRouteText" style="font-weight:600; color:var(--text-sub); font-size:14px; cursor:pointer;" onclick="loadFavorite()"></div>
+        </div>
+
+        <!-- नजीकचे स्टॉप्स रिझल्ट -->
+        <div class="feature-card" id="nearbyCard" style="display:none;">
+            <h4 style="margin:0 0 8px 0; color:var(--accent); font-size:15px;">📍 तुमच्या जवळील बस स्टॉप्स:</h4>
+            <ul id="nearbyList" style="margin:0; padding-left:20px; font-weight:600; font-size:14px; color:var(--text-main);"></ul>
+        </div>
+
+        <!-- मॅप -->
+        <div id="map"></div>
+
+        <!-- निकाल आणि माहिती -->
+        <div class="result-card" id="resultCard">
+            <div class="bus-title" id="busNameTitle"></div>
+            <div class="bus-route" id="busRouteSub"></div>
+            <div id="crowdStatusBox"></div>
+            <hr style="border: 0; border-top: 1px solid var(--border); margin-bottom: 16px;">
+            <h4 style="margin-top: 0; font-size: 15px; color: var(--text-sub);">बसचे स्टॉप्स:</h4>
+            <div class="timeline" id="timelineBox"></div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet Map JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        const routesData = [
+            {
+                id: "101",
+                source: "सिडको", sourceEn: "CIDCO",
+                destination: "क्रांती चौक", destinationEn: "Kranti Chowk",
+                busName: "बस १०१ - सिडको एक्स्प्रेस",
+                routeText: "सिडको ➔ मोंढा नाका ➔ क्रांती चौक",
+                departureTimes: "०८:०० वा., १०:०० वा., १२:३० वा.",
+                crowd: "medium", crowdText: "मध्यम गर्दी (Medium Crowd)",
+                lat: 19.8762, lng: 75.3433,
+                stops: [
+                    { name: "सिडको (CIDCO)", time: "१०:०० वाजता", status: "passed" },
+                    { name: "मोंढा नाका (Mondha Naka)", time: "१०:१० वाजता", status: "current" },
+                    { name: "क्रांती चौक (Kranti Chowk)", time: "१०:२० वाजता", status: "upcoming" }
+                ]
+            },
+            {
+                id: "102",
+                source: "मध्यवर्ती बस स्टँड", sourceEn: "Central Bus Stand",
+                destination: "रेल्वे स्टेशन", destinationEn: "Railway Station",
+                busName: "बस १०२ - रेल्वे स्पेशल",
+                routeText: "मध्यवर्ती बस स्टँड ➔ अदालत रोड ➔ रेल्वे स्टेशन",
+                departureTimes: "०९:१५ वा., ११:४५ वा., ०३:१५ वा.",
+                crowd: "low", crowdText: "मोकळी बस (Low Crowd)",
+                lat: 19.8850, lng: 75.3250,
+                stops: [
+                    { name: "मध्यवर्ती बस स्टँड (CBS)", time: "०९:१५ वाजता", status: "passed" },
+                    { name: "अदालत रोड (Adalat Road)", time: "०९:२५ वाजता", status: "current" },
+                    { name: "रेल्वे स्टेशन (Railway Station)", time: "०९:३५ वाजता", status: "upcoming" }
+                ]
+            },
+            {
+                id: "103",
+                source: "सिडको एन-१", sourceEn: "CIDCO N-1",
+                destination: "सिंहासन चौक", destinationEn: "Sinhasan Chowk",
+                busName: "बस १०३ - एन-१ स्पेशल",
+                routeText: "सिडको एन-१ ➔ सिडको एन-५ ➔ सिंहासन चौक",
+                departureTimes: "०८:३० वा., ११:०० वा.",
+                crowd: "high", crowdText: "पूर्ण गर्दी / फुल (High Crowd)",
+                lat: 19.8650, lng: 75.3550,
+                stops: [
+                    { name: "सिडको एन-१ (CIDCO N-1)", time: "०८:३० वाजता", status: "passed" },
+                    { name: "सिडको एन-५ (CIDCO N-5)", time: "०८:४० वाजता", status: "current" },
+                    { name: "सिंहासन चौक (Sinhasan Chowk)", time: "०८:५० वाजता", status: "upcoming" }
+                ]
+            }
+        ];
+
+        const sambhajinagarStops = [
+            "सिडको (CIDCO)", "सिडको एन-१ (CIDCO N-1)", "सिडको एन-५",
+            "क्रांती चौक (Kranti Chowk)", "मोंढा नाका (Mondha Naka)",
+            "मध्यवर्ती बस स्टँड (CBS)", "रेल्वे स्टेशन (Railway Station)",
+            "अदालत रोड (Adalat Road)", "बाबा पेट्रोल पंप", "सिंहासन चौक"
+        ];
+
+        const firebaseConfig = {
+            databaseURL: "https://sambhajinagar-live-bus-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.search-section').forEach(sec => sec.classList.remove('active'));
+
+            if (tab === 'route') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('routeSearchSection').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('busNoSearchSection').classList.add('active');
+            }
+        }
+
+        function loadTimetable() {
+            let tbody = document.getElementById('timetableBody');
+            tbody.innerHTML = "";
+            routesData.forEach(route => {
+                tbody.innerHTML += `<tr><td><b>${route.busName}</b></td><td>${route.routeText}</td><td>${route.departureTimes}</td></tr>`;
+            });
+        }
+        loadTimetable();
+
+        function toggleTimetable() {
+            let ttCard = document.getElementById('timetableCard');
+            ttCard.style.display = (ttCard.style.display === "block") ? "none" : "block";
+        }
+
+        // १. नजीकचे स्टॉप्स शोधणे (Nearby Stops)
+        function getNearbyStops() {
+            document.getElementById('sourceInput').value = "सिडको (CIDCO)";
+            let nearbyCard = document.getElementById('nearbyCard');
+            let nearbyList = document.getElementById('nearbyList');
+            
+            nearbyCard.style.display = "block";
+            nearbyList.innerHTML = `
+                <li>सिडको एन-१ (अंतर: २०० मीटर)</li>
+                <li>सिडको बस स्टँड (अंतर: ५०० मीटर)</li>
+                <li>मोंढा नाका (अंतर: १.२ किमी)</li>
+            `;
+        }
+
+        // २. फेव्हरेट मार्ग सेव्ह करणे
+        function saveFavoriteRoute() {
+            let src = document.getElementById('sourceInput').value;
+            let dest = document.getElementById('destInput').value;
+            if(!src || !dest) {
+                alert("कृपया आधी 'कुठून' आणि 'कुठे' भरा!");
+                return;
+            }
+            let favText = `${src} ➔ ${dest}`;
+            localStorage.setItem('favRoute', favText);
+            document.getElementById('favCard').style.display = "block";
+            document.getElementById('favRouteText').innerText = favText;
+            alert("मार्ग यशस्वीरीत्या सेव्ह झाला!");
+        }
+
+        function loadFavorite() {
+            let saved = localStorage.getItem('favRoute');
+            if(saved) {
+                let parts = saved.split(' ➔ ');
+                document.getElementById('sourceInput').value = parts[0];
+                document.getElementById('destInput').value = parts[1];
+                findBusRoute();
+            }
+        }
+
+        // लोड झाल्यावर चेक करणे फेव्हरेट आहे का
+        window.onload = function() {
+            let saved = localStorage.getItem('favRoute');
+            if(saved) {
+                document.getElementById('favCard').style.display = "block";
+                document.getElementById('favRouteText').innerText = saved;
+            }
+        }
+
+        function filterSuggestions(inputId, listId) {
+            let inputVal = document.getElementById(inputId).value.trim().toLowerCase();
+            let listDiv = document.getElementById(listId);
+            listDiv.innerHTML = "";
+            if (inputVal === "") return;
+
+            let matches = sambhajinagarStops.filter(stop => stop.toLowerCase().includes(inputVal));
+            matches.forEach(stop => {
+                let item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerText = stop;
+                item.onclick = function() {
+                    document.getElementById(inputId).value = stop;
+                    listDiv.innerHTML = "";
+                };
+                listDiv.appendChild(item);
+            });
+        }
+
+        var map, busMarker;
+
+        function displayBusResult(matchedBus) {
+            let resultCard = document.getElementById('resultCard');
+            let mapDiv = document.getElementById('map');
+
+            document.getElementById('timetableCard').style.display = "none";
+            resultCard.style.display = "block";
+            mapDiv.style.display = "block";
+
+            document.getElementById('busNameTitle').innerText = matchedBus.busName;
+            document.getElementById('busRouteSub').innerText = "मार्ग: " + matchedBus.routeText;
+
+            // गर्दीची स्थिती दाखवणे (Crowd Status)
+            let crowdClass = `crowd-${matchedBus.crowd}`;
+            document.getElementById('crowdStatusBox').innerHTML = `<span class="crowd-badge ${crowdClass}">📊 गर्दीची स्थिती: ${matchedBus.crowdText}</span>`;
+
+            let timelineHTML = "";
+            matchedBus.stops.forEach(stop => {
+                let badge = (stop.status === "current") ? `<span class="current-badge">सध्या बस इथे आहे 📍</span>` : "";
+                timelineHTML += `
+                    <div class="stop-item ${stop.status}">
+                        <div class="stop-name">${stop.name} ${badge}</div>
+                        <div class="stop-time">${stop.time}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('timelineBox').innerHTML = timelineHTML;
+
+            let sambhajinagarBounds = [[19.8000, 75.2500], [19.9500, 75.4500]];
+
+            if (!map) {
+                map = L.map('map', { maxBounds: sambhajinagarBounds, minZoom: 12, maxZoom: 17 }).setView([matchedBus.lat, matchedBus.lng], 14);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+                busMarker = L.marker([matchedBus.lat, matchedBus.lng]).addTo(map).bindPopup(`<b>${matchedBus.busName}</b>`).openPopup();
+            } else {
+                map.setView([matchedBus.lat, matchedBus.lng], 14);
+                busMarker.setLatLng([matchedBus.lat, matchedBus.lng]).setPopupContent(`<b>${matchedBus.busName}</b>`).openPopup();
+            }
+            setTimeout(() => { map.invalidateSize(); }, 200);
+
+            db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
+                let liveData = snapshot.val();
+                if (liveData && map && busMarker) {
+                    busMarker.setLatLng([liveData.lat, liveData.lng]);
+                    map.panTo([liveData.lat, liveData.lng]);
+                }
+            });
+        }
+
+        // ३. मार्कानुसार शोधणे
+        function findBusRoute() {
+            let sourceVal = document.getElementById('sourceInput').value.trim().toLowerCase();
+            let destVal = document.getElementById('destInput').value.trim().toLowerCase();
+            document.querySelectorAll('.suggestions-list').forEach(el => el.innerHTML = "");
+
+            let matchedBus = routesData.find(r => 
+                (r.source.toLowerCase().includes(sourceVal) || r.sourceEn.toLowerCase().includes(sourceVal)) && 
+                (r.destination.toLowerCase().includes(destVal) || r.destinationEn.toLowerCase().includes(destVal))
+            );
+
+            if (matchedBus) {
+                displayBusResult(matchedBus);
+            } else {
+                alert("माफ करा! या मार्गावर बस सापडली नाही.");
+            }
+        }
+
+        // ४. बस नंबरनुसार शोधणे (Search by Bus Number)
+        function findBusByNumber() {
+            let busId = document.getElementById('busSelect').value;
+            let matchedBus = routesData.find(r => r.id === busId);
+            if (matchedBus) {
+                displayBusResult(matchedBus);
+            }
+        }
+    </script>
+</body>
+</html>
