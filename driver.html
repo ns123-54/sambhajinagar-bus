@@ -23,8 +23,29 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         h2 { color: #1d4ed8; margin-top: 0; }
+        
+        .input-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .input-group select, .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
         .status {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             margin: 20px 0;
             padding: 10px;
@@ -52,7 +73,25 @@
 
     <div class="card">
         <h2>🚍 ड्रायव्हर जीपीएस ट्रॅकर</h2>
-        <p>बस क्रमांक: <b>बस १०१ - सिडको एक्स्प्रेस</b></p>
+        
+        <!-- बस निवड व पासवर्ड फॉर्म -->
+        <div id="loginSection">
+            <div class="input-group">
+                <label for="busSelect">बस निवडा:</label>
+                <select id="busSelect">
+                    <option value="101">बस १०१ - सिडको एक्स्प्रेस</option>
+                    <option value="102">बस १०२ - रेल्वे स्पेशल</option>
+                    <option value="103">बस १०३ - एन-१ स्पेशल</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="driverPassword">ड्रायव्हर सिक्रेट पिन (Password):</label>
+                <input type="password" id="driverPassword" placeholder="पासवर्ड टाका (उदा. 1234)">
+            </div>
+        </div>
+
+        <p id="selectedBusDisplay" style="font-weight:700; color:#1d4ed8; display:none;"></p>
         
         <div id="statusBox" class="status">ट्रॅकिंग बंद आहे</div>
         
@@ -62,12 +101,11 @@
         <button id="stopBtn" class="btn stop-btn" onclick="stopTracking()" style="display:none;">ट्रॅकिंग थांबवा</button>
     </div>
 
-    <!-- Firebase SDKs (नवीन जोडलेले) -->
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // तुमचे Firebase कॉन्फिग (तुमची Database URL इथे जोडली आहे)
         const firebaseConfig = {
             databaseURL: "https://sambhajinagar-live-bus-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
@@ -76,43 +114,85 @@
         const database = firebase.database();
 
         let watchId = null;
+        let currentBusId = null;
+        const validPassword = "1234"; // येथे तू हवा तो सिक्रेट पासवर्ड सेट करू शकतोस (उदा. 1234)
+        
+        // प्रत्येक डिव्हाइससाठी एक युनिक आयडी तयार करणे
+        let deviceId = localStorage.getItem('driver_device_id');
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('driver_device_id', deviceId);
+        }
 
         function startTracking() {
-            if (navigator.geolocation) {
-                document.getElementById('statusBox').innerText = "जीपीएस सुरू होत आहे...";
-                
-                watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        let lat = position.coords.latitude;
-                        let lng = position.coords.longitude;
-                        
-                        document.getElementById('statusBox').innerText = "लाईव्ह ट्रॅकिंग चालू आहे 🟢";
-                        document.getElementById('statusBox').className = "status active-status";
-                        document.getElementById('coordsText').innerText = `अक्षांश (Lat): ${lat.toFixed(4)}, रेखांश (Lng): ${lng.toFixed(4)}`;
-                        
-                        // थेट Firebase डेटाबेसवर लोकेशन पाठवणे
-                        database.ref('buses/bus_101').set({
-                            lat: lat,
-                            lng: lng,
-                            updatedAt: new Date().toLocaleTimeString()
-                        });
-                    },
-                    (error) => {
-                        alert("लोकेशन एरर: " + error.message);
-                        document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी";
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 0,
-                        timeout: 5000
-                    }
-                );
+            let busSelect = document.getElementById('busSelect').value;
+            let passwordInput = document.getElementById('driverPassword').value;
 
-                document.getElementById('startBtn').style.display = "none";
-                document.getElementById('stopBtn').style.display = "block";
-            } else {
-                alert("तुमचा ब्राऊजर जीपीएस सपोर्ट करत नाही!");
+            // १. पासवर्ड तपासणी
+            if (passwordInput !== validPassword) {
+                alert("चुकीचा पासवर्ड! कृपया योग्य ड्रायव्हर पिन टाका.");
+                return;
             }
+
+            currentBusId = busSelect;
+
+            // २. डिव्हाइस लॉक तपासणे (दुसऱ्या फोनवरून आधीच चालू आहे का ते पाहणे)
+            database.ref(`locks/bus_${currentBusId}`).once('value', (snapshot) => {
+                let lockData = snapshot.val();
+
+                if (lockData && lockData.active && lockData.deviceId !== deviceId) {
+                    alert("माफ करा! या बसचे ट्रॅकिंग आधीच दुसऱ्या मोबाईलवरून सुरू आहे.");
+                    return;
+                }
+
+                // जर लॉक मोकळा असेल किंवा याच फोनने केला असेल तर ट्रॅकिंग ऑन करणे
+                database.ref(`locks/bus_${currentBusId}`).set({
+                    active: true,
+                    deviceId: deviceId
+                });
+
+                if (navigator.geolocation) {
+                    document.getElementById('loginSection').style.display = "none";
+                    let busText = document.getElementById('busSelect').options[document.getElementById('busSelect').selectedIndex].text;
+                    let selectedDisplay = document.getElementById('selectedBusDisplay');
+                    selectedDisplay.innerText = "सध्या सुरू बस: " + busText;
+                    selectedDisplay.style.display = "block";
+
+                    document.getElementById('statusBox').innerText = "जीपीएस सुरू होत आहे...";
+                    
+                    watchId = navigator.geolocation.watchPosition(
+                        (position) => {
+                            let lat = position.coords.latitude;
+                            let lng = position.coords.longitude;
+                            
+                            document.getElementById('statusBox').innerText = "लाईव्ह ट्रॅकिंग चालू आहे 🟢";
+                            document.getElementById('statusBox').className = "status active-status";
+                            document.getElementById('coordsText').innerText = `अक्षांश (Lat): ${lat.toFixed(4)}, रेखांश (Lng): ${lng.toFixed(4)}`;
+                            
+                            // Firebase वर लोकेशन पाठवणे
+                            database.ref(`buses/bus_${currentBusId}`).set({
+                                lat: lat,
+                                lng: lng,
+                                updatedAt: new Date().toLocaleTimeString()
+                            });
+                        },
+                        (error) => {
+                            alert("लोकेशन एरर: " + error.message);
+                            document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी";
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            maximumAge: 0,
+                            timeout: 5000
+                        }
+                    );
+
+                    document.getElementById('startBtn').style.display = "none";
+                    document.getElementById('stopBtn').style.display = "block";
+                } else {
+                    alert("तुमचा ब्राऊजर जीपीएस सपोर्ट करत नाही!");
+                }
+            });
         }
 
         function stopTracking() {
@@ -120,11 +200,20 @@
                 navigator.geolocation.clearWatch(watchId);
                 watchId = null;
             }
-            database.ref('buses/bus_101').remove(); // ट्रॅकिंग बंद झाल्यावर डेटाबेस रिकामा करणे
+
+            if (currentBusId) {
+                // डेटाबेसवरून बसचे लोकेशन आणि लॉक काढणे
+                database.ref(`buses/bus_${currentBusId}`).remove();
+                database.ref(`locks/bus_${currentBusId}`).remove();
+            }
+
             document.getElementById('statusBox').innerText = "ट्रॅकिंग बंद आहे";
             document.getElementById('statusBox').className = "status";
             document.getElementById('startBtn').style.display = "block";
             document.getElementById('stopBtn').style.display = "none";
+            document.getElementById('loginSection').style.display = "block";
+            document.getElementById('selectedBusDisplay').style.display = "none";
+            document.getElementById('driverPassword').value = "";
         }
     </script>
 </body>
