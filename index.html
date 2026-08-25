@@ -26,7 +26,6 @@
             --text-main: #0f172a;
             --text-sub: #475569;
             --primary: #1d4ed8;
-            --primary-hover: #1e40af;
             --accent: #16a34a;
             --border: #cbd5e1;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -60,23 +59,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 13px;
-            background: white;
-            color: var(--primary);
         }
 
         .main-container {
@@ -151,10 +133,6 @@
             color: #000;
         }
 
-        .input-group input:focus, .input-group select:focus {
-            border-color: var(--primary);
-        }
-
         .gps-btn {
             background: var(--accent);
             color: white;
@@ -218,13 +196,30 @@
             margin-top: 10px;
         }
 
+        /* गुगल मॅपसारखा भारी लुक */
         #map {
-            height: 280px;
+            height: 350px;
             width: 100%;
-            border-radius: 10px;
+            border-radius: 12px;
             margin-bottom: 16px;
             border: 2px solid var(--border);
             display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* बस इमोजीसाठी स्टाईल */
+        .bus-emoji-icon {
+            font-size: 32px;
+            background: white;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid var(--primary);
+            transition: all 0.5s ease-in-out; /* बस हळूहळू पुढे सरकण्यासाठी स्मूथ ॲनिमेशन */
         }
 
         .result-card, .timetable-card { display: none; }
@@ -243,7 +238,6 @@
             font-weight: 600;
         }
 
-        /* गर्दीची स्थिती बॅज */
         .crowd-badge {
             display: inline-block;
             padding: 4px 10px;
@@ -323,7 +317,7 @@
     <div class="header">
         <h1>🚍 संभाजीनगर बस लाईव्ह</h1>
         <div class="header-controls">
-            <button class="btn" onclick="toggleTimetable()">📅 वेळापत्रक</button>
+            <button class="btn" onclick="toggleTimetable()" style="padding:8px 12px; border-radius:6px; border:none; font-weight:600; cursor:pointer; font-size:13px; background:white; color:var(--primary);">📅 वेळापत्रक</button>
         </div>
     </div>
 
@@ -344,7 +338,7 @@
             </table>
         </div>
 
-        <!-- मुख्य शोध कार्ड (टॅब सिस्टम) -->
+        <!-- शोध कार्ड -->
         <div class="search-card">
             <div class="tab-buttons">
                 <button class="tab-btn active" onclick="switchTab('route')">मार्कानुसार</button>
@@ -357,7 +351,7 @@
                     <label for="sourceInput">📍 कुठून निघायचे आहे?</label>
                     <div class="input-wrapper">
                         <input type="text" id="sourceInput" placeholder="उदा. सिडको" oninput="filterSuggestions('sourceInput', 'sourceSuggestions')" autocomplete="off">
-                        <button class="gps-btn" onclick="getNearbyStops()" title="नजीकचे स्टॉप्स शोधा">📍</button>
+                        <button class="gps-btn" onclick="getNearbyStops()" title="नजीकचे स्टॉप्स">📍</button>
                     </div>
                     <div id="sourceSuggestions" class="suggestions-list"></div>
                 </div>
@@ -386,19 +380,19 @@
             </div>
         </div>
 
-        <!-- सेव्ह केलेले आवडीचे मार्ग दर्शवणारी पट्टी -->
+        <!-- फेव्हरेट मार्ग -->
         <div class="feature-card" id="favCard" style="display:none;">
             <h4 style="margin:0 0 8px 0; color:var(--primary); font-size:15px;">⭐ तुमचे सेव्ह केलेले मार्ग:</h4>
             <div id="favRouteText" style="font-weight:600; color:var(--text-sub); font-size:14px; cursor:pointer;" onclick="loadFavorite()"></div>
         </div>
 
-        <!-- नजीकचे स्टॉप्स रिझल्ट -->
+        <!-- नजीकचे स्टॉप्स -->
         <div class="feature-card" id="nearbyCard" style="display:none;">
             <h4 style="margin:0 0 8px 0; color:var(--accent); font-size:15px;">📍 तुमच्या जवळील बस स्टॉप्स:</h4>
             <ul id="nearbyList" style="margin:0; padding-left:20px; font-weight:600; font-size:14px; color:var(--text-main);"></ul>
         </div>
 
-        <!-- मॅप -->
+        <!-- गुगल मॅपसारखा नकाशा -->
         <div id="map"></div>
 
         <!-- निकाल आणि माहिती -->
@@ -509,7 +503,6 @@
             ttCard.style.display = (ttCard.style.display === "block") ? "none" : "block";
         }
 
-        // १. नजीकचे स्टॉप्स शोधणे (Nearby Stops)
         function getNearbyStops() {
             document.getElementById('sourceInput').value = "सिडको (CIDCO)";
             let nearbyCard = document.getElementById('nearbyCard');
@@ -523,7 +516,6 @@
             `;
         }
 
-        // २. फेव्हरेट मार्ग सेव्ह करणे
         function saveFavoriteRoute() {
             let src = document.getElementById('sourceInput').value;
             let dest = document.getElementById('destInput').value;
@@ -548,7 +540,6 @@
             }
         }
 
-        // लोड झाल्यावर चेक करणे फेव्हरेट आहे का
         window.onload = function() {
             let saved = localStorage.getItem('favRoute');
             if(saved) {
@@ -589,7 +580,6 @@
             document.getElementById('busNameTitle').innerText = matchedBus.busName;
             document.getElementById('busRouteSub').innerText = "मार्ग: " + matchedBus.routeText;
 
-            // गर्दीची स्थिती दाखवणे (Crowd Status)
             let crowdClass = `crowd-${matchedBus.crowd}`;
             document.getElementById('crowdStatusBox').innerHTML = `<span class="crowd-badge ${crowdClass}">📊 गर्दीची स्थिती: ${matchedBus.crowdText}</span>`;
 
@@ -607,26 +597,41 @@
 
             let sambhajinagarBounds = [[19.8000, 75.2500], [19.9500, 75.4500]];
 
+            // बससाठी गुगल मॅपसारखा कस्टम इमोजी आयकॉन
+            let busIcon = L.divIcon({
+                className: 'bus-emoji-icon',
+                html: '🚍',
+                iconSize: [44, 44],
+                iconAnchor: [22, 22]
+            });
+
             if (!map) {
-                map = L.map('map', { maxBounds: sambhajinagarBounds, minZoom: 12, maxZoom: 17 }).setView([matchedBus.lat, matchedBus.lng], 14);
+                map = L.map('map', { maxBounds: sambhajinagarBounds, minZoom: 12, maxZoom: 17 }).setView([matchedBus.lat, matchedBus.lng], 15);
                 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
-                busMarker = L.marker([matchedBus.lat, matchedBus.lng]).addTo(map).bindPopup(`<b>${matchedBus.busName}</b>`).openPopup();
+                
+                // निळ्या पिनऐवजी थेट बस इमोजी टाकणे
+                busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map)
+                    .bindPopup(`<b>${matchedBus.busName}</b><br>लाइव्ह ट्रॅकिंग चालू आहे`).openPopup();
             } else {
-                map.setView([matchedBus.lat, matchedBus.lng], 14);
-                busMarker.setLatLng([matchedBus.lat, matchedBus.lng]).setPopupContent(`<b>${matchedBus.busName}</b>`).openPopup();
+                map.setView([matchedBus.lat, matchedBus.lng], 15);
+                busMarker.setLatLng([matchedBus.lat, matchedBus.lng]);
             }
             setTimeout(() => { map.invalidateSize(); }, 200);
 
+            // ड्रायव्हरने लोकेशन बदलले की बस आपोआप पुढे सरकणे (Real-time Smooth movement)
             db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
-                    busMarker.setLatLng([liveData.lat, liveData.lng]);
-                    map.panTo([liveData.lat, liveData.lng]);
+                    let newLat = liveData.lat;
+                    let newLng = liveData.lng;
+                    
+                    // बसचे स्थान बदलणे आणि नकाशा हलवणे
+                    busMarker.setLatLng([newLat, newLng]);
+                    map.panTo([newLat, newLng], { animate: true, duration: 0.5 });
                 }
             });
         }
 
-        // ३. मार्कानुसार शोधणे
         function findBusRoute() {
             let sourceVal = document.getElementById('sourceInput').value.trim().toLowerCase();
             let destVal = document.getElementById('destInput').value.trim().toLowerCase();
@@ -644,7 +649,6 @@
             }
         }
 
-        // ४. बस नंबरनुसार शोधणे (Search by Bus Number)
         function findBusByNumber() {
             let busId = document.getElementById('busSelect').value;
             let matchedBus = routesData.find(r => r.id === busId);
