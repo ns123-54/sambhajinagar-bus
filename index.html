@@ -196,9 +196,9 @@
             margin-top: 10px;
         }
 
-        /* गुगल मॅपसारखा भारी लुक */
+        /* मॅप स्टाईल */
         #map {
-            height: 350px;
+            height: 380px;
             width: 100%;
             border-radius: 12px;
             margin-bottom: 16px;
@@ -219,7 +219,7 @@
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             border: 2px solid var(--primary);
-            transition: all 0.5s ease-in-out; /* बस हळूहळू पुढे सरकण्यासाठी स्मूथ ॲनिमेशन */
+            transition: all 0.5s ease-in-out;
         }
 
         .result-card, .timetable-card { display: none; }
@@ -392,7 +392,7 @@
             <ul id="nearbyList" style="margin:0; padding-left:20px; font-weight:600; font-size:14px; color:var(--text-main);"></ul>
         </div>
 
-        <!-- गुगल मॅपसारखा नकाशा -->
+        <!-- नकाशा -->
         <div id="map"></div>
 
         <!-- निकाल आणि माहिती -->
@@ -597,7 +597,25 @@
 
             let sambhajinagarBounds = [[19.8000, 75.2500], [19.9500, 75.4500]];
 
-            // बससाठी गुगल मॅपसारखा कस्टम इमोजी आयकॉन
+            // मॅप लेयर्स तयार करणे (Standard, Satellite, Traffic)
+            let standardLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                attribution: '&copy; OpenStreetMap' 
+            });
+
+            let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+                attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community' 
+            });
+
+            let trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { 
+                attribution: '&copy; OpenStreetMap contributors, HOT Style (Traffic/Active View)' 
+            });
+
+            let baseMaps = {
+                "🗺️ नॉर्मल मॅप (Standard)": standardLayer,
+                "🛰️ सॅटेलाइट (Satellite)": satelliteLayer,
+                "🚦 ट्रॅफिक / हायलाइट (Traffic)": trafficLayer
+            };
+
             let busIcon = L.divIcon({
                 className: 'bus-emoji-icon',
                 html: '🚍',
@@ -606,10 +624,16 @@
             });
 
             if (!map) {
-                map = L.map('map', { maxBounds: sambhajinagarBounds, minZoom: 12, maxZoom: 17 }).setView([matchedBus.lat, matchedBus.lng], 15);
-                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+                map = L.map('map', { 
+                    maxBounds: sambhajinagarBounds, 
+                    minZoom: 12, 
+                    maxZoom: 17,
+                    layers: [standardLayer] // डीफॉल्ट नॉर्मल मॅप
+                }).setView([matchedBus.lat, matchedBus.lng], 15);
+
+                // लेयर स्विच करण्यासाठी बटण (Layers Control) मॅपवर जोडणे
+                L.control.layers(baseMaps).addTo(map);
                 
-                // निळ्या पिनऐवजी थेट बस इमोजी टाकणे
                 busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map)
                     .bindPopup(`<b>${matchedBus.busName}</b><br>लाइव्ह ट्रॅकिंग चालू आहे`).openPopup();
             } else {
@@ -618,14 +642,13 @@
             }
             setTimeout(() => { map.invalidateSize(); }, 200);
 
-            // ड्रायव्हरने लोकेशन बदलले की बस आपोआप पुढे सरकणे (Real-time Smooth movement)
+            // लाईव्ह लोकेशन अपडेट
             db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
                     let newLat = liveData.lat;
                     let newLng = liveData.lng;
                     
-                    // बसचे स्थान बदलणे आणि नकाशा हलवणे
                     busMarker.setLatLng([newLat, newLng]);
                     map.panTo([newLat, newLng], { animate: true, duration: 0.5 });
                 }
