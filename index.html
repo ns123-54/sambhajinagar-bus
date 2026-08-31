@@ -65,6 +65,7 @@
             max-width: 500px;
             margin: 20px auto;
             padding: 0 12px;
+            padding-bottom: 40px;
         }
 
         .search-card, .result-card, .timetable-card, .feature-card {
@@ -196,6 +197,27 @@
             margin-top: 10px;
         }
 
+        /* क्विक फिल्टर पिल्स */
+        .quick-pills {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        .pill {
+            background: #e2e8f0;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-sub);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .pill:hover { background: var(--primary); color: white; }
+
         /* मॅप स्टाईल */
         #map {
             height: 380px;
@@ -219,7 +241,14 @@
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             border: 2px solid var(--primary);
-            transition: all 0.5s ease-in-out;
+        }
+
+        /* युजरच्या स्वतःच्या लोकेशनसाठी डॉट */
+        .user-dot {
+            background: #2563eb;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.4);
         }
 
         .result-card, .timetable-card { display: none; }
@@ -236,6 +265,17 @@
             font-size: 14px;
             margin-bottom: 12px;
             font-weight: 600;
+        }
+
+        .eta-info {
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            border: 1px solid #bfdbfe;
         }
 
         .crowd-badge {
@@ -338,6 +378,13 @@
             </table>
         </div>
 
+        <!-- क्विक फिल्टर पिल्स (Quick Filter Buttons) -->
+        <div class="quick-pills">
+            <button class="pill" onclick="quickSearch('सिडको', 'क्रांती चौक')">सिडको ➔ क्रांती चौक</button>
+            <button class="pill" onclick="quickSearch('बस स्टँड', 'रेल्वे स्टेशन')">बस स्टँड ➔ रेल्वे स्टेशन</button>
+            <button class="pill" onclick="quickSearch('सिडको एन-१', 'सिंहासन चौक')">एन-१ ➔ सिंहासन</button>
+        </div>
+
         <!-- शोध कार्ड -->
         <div class="search-card">
             <div class="tab-buttons">
@@ -399,6 +446,7 @@
         <div class="result-card" id="resultCard">
             <div class="bus-title" id="busNameTitle"></div>
             <div class="bus-route" id="busRouteSub"></div>
+            <div class="eta-info" id="etaBox">⏳ अंतर आणि वेळ मोजत आहे...</div>
             <div id="crowdStatusBox"></div>
             <hr style="border: 0; border-top: 1px solid var(--border); margin-bottom: 16px;">
             <h4 style="margin-top: 0; font-size: 15px; color: var(--text-sub);">बसचे स्टॉप्स:</h4>
@@ -476,6 +524,50 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        let userLatLng = null;
+        let userMarker = null;
+
+        // प्रवाशाचे स्वतःचे जीपीएस लोकेशन ट्रॅक करणे
+        function trackUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((position) => {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    userLatLng = [lat, lng];
+
+                    if (map) {
+                        if (userMarker) {
+                            userMarker.setLatLng(userLatLng);
+                        } else {
+                            let userIcon = L.divIcon({
+                                className: 'custom-user-icon',
+                                html: '<div class="user-dot" style="width:16px; height:16px;"></div>',
+                                iconSize: [16, 16]
+                            });
+                            userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(map)
+                                .bindPopup("<b>तुम्ही इथे आहात (तुमचे लोकेशन)</b>");
+                        }
+                    }
+                }, (error) => {
+                    console.log("Geolocation error: " + error.message);
+                }, { enableHighAccuracy: true });
+            }
+        }
+        trackUserLocation();
+
+        // अंतर मोजण्यासाठी फंक्शन (Haversine Formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            function toRad(x) { return x * Math.PI / 180; }
+            let R = 6371;
+            let dLat = toRad(lat2 - lat1);
+            let dLon = toRad(lon2 - lon1);
+            let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return (R * c).toFixed(1);
+        }
+
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.search-section').forEach(sec => sec.classList.remove('active'));
@@ -501,6 +593,12 @@
         function toggleTimetable() {
             let ttCard = document.getElementById('timetableCard');
             ttCard.style.display = (ttCard.style.display === "block") ? "none" : "block";
+        }
+
+        function quickSearch(src, dest) {
+            document.getElementById('sourceInput').value = src;
+            document.getElementById('destInput').value = dest;
+            findBusRoute();
         }
 
         function getNearbyStops() {
@@ -580,6 +678,16 @@
             document.getElementById('busNameTitle').innerText = matchedBus.busName;
             document.getElementById('busRouteSub').innerText = "मार्ग: " + matchedBus.routeText;
 
+            // ETA आणि अंतर कॅल्क्युलेशन अपडेट
+            let etaBox = document.getElementById('etaBox');
+            if (userLatLng) {
+                let dist = calculateDistance(userLatLng[0], userLatLng[1], matchedBus.lat, matchedBus.lng);
+                let timeMin = Math.round(dist * 3);
+                etaBox.innerHTML = `📍 बस तुमच्यापासून सुमारे ${dist} किमी अंतरावर आहे (~${timeMin} मिनिटे)`;
+            } else {
+                etaBox.innerHTML = `📍 जीपीएस लोकेशन शोधत आहे...`;
+            }
+
             let crowdClass = `crowd-${matchedBus.crowd}`;
             document.getElementById('crowdStatusBox').innerHTML = `<span class="crowd-badge ${crowdClass}">📊 गर्दीची स्थिती: ${matchedBus.crowdText}</span>`;
 
@@ -597,23 +705,22 @@
 
             let sambhajinagarBounds = [[19.8000, 75.2500], [19.9500, 75.4500]];
 
-            // मॅप लेयर्स तयार करणे (Standard, Satellite, Traffic)
             let standardLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
                 attribution: '&copy; OpenStreetMap' 
             });
 
             let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
-                attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community' 
+                attribution: '&copy; Esri' 
             });
 
             let trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { 
-                attribution: '&copy; OpenStreetMap contributors, HOT Style (Traffic/Active View)' 
+                attribution: '&copy; OpenStreetMap contributors' 
             });
 
             let baseMaps = {
-                "🗺️ नॉर्मल मॅप (Standard)": standardLayer,
-                "🛰️ सॅटेलाइट (Satellite)": satelliteLayer,
-                "🚦 ट्रॅफिक / हायलाइट (Traffic)": trafficLayer
+                "🗺️ नॉर्मल मॅप": standardLayer,
+                "🛰️ सॅटेलाइट": satelliteLayer,
+                "🚦 ट्रॅफिक": trafficLayer
             };
 
             let busIcon = L.divIcon({
@@ -628,21 +735,24 @@
                     maxBounds: sambhajinagarBounds, 
                     minZoom: 12, 
                     maxZoom: 17,
-                    layers: [standardLayer] // डीफॉल्ट नॉर्मल मॅप
+                    layers: [standardLayer] 
                 }).setView([matchedBus.lat, matchedBus.lng], 15);
 
-                // लेयर स्विच करण्यासाठी बटण (Layers Control) मॅपवर जोडणे
                 L.control.layers(baseMaps).addTo(map);
                 
                 busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map)
                     .bindPopup(`<b>${matchedBus.busName}</b><br>लाइव्ह ट्रॅकिंग चालू आहे`).openPopup();
+                
+                if (userLatLng && userMarker) {
+                    userMarker.addTo(map);
+                }
             } else {
                 map.setView([matchedBus.lat, matchedBus.lng], 15);
                 busMarker.setLatLng([matchedBus.lat, matchedBus.lng]);
             }
             setTimeout(() => { map.invalidateSize(); }, 200);
 
-            // लाईव्ह लोकेशन अपडेट
+            // लाईव्ह लोकेशन अपडेट (Firebase)
             db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
@@ -651,6 +761,12 @@
                     
                     busMarker.setLatLng([newLat, newLng]);
                     map.panTo([newLat, newLng], { animate: true, duration: 0.5 });
+
+                    if (userLatLng) {
+                        let dist = calculateDistance(userLatLng[0], userLatLng[1], newLat, newLng);
+                        let timeMin = Math.round(dist * 3);
+                        etaBox.innerHTML = `📍 बस तुमच्यापासून सुमारे ${dist} किमी अंतरावर आहे (~${timeMin} मिनिटे)`;
+                    }
                 }
             });
         }
