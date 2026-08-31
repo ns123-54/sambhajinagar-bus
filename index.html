@@ -460,7 +460,7 @@
         let userLatLng = null;
         let userMarker = null;
 
-        // वेबसाईट उघडल्याबरोबर लगेच युजरचे लोकेशन मागणे
+     // युजरचे अचूक जीपीएस लोकेशन मिळवून मॅपवर दाखवणे
         function requestUserLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position) => {
@@ -468,18 +468,25 @@
                     let lng = position.coords.longitude;
                     userLatLng = [lat, lng];
 
-                    if (map && !userMarker) {
-                        let userIcon = L.divIcon({
-                            className: 'custom-user-icon',
-                            html: '<div class="user-dot" style="width:16px; height:16px; background:#2563eb; border:3px solid white; border-radius:50%; box-shadow:0 0 10px rgba(0,0,0,0.4);"></div>',
-                            iconSize: [16, 16]
-                        });
-                        userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(map)
-                            .bindPopup("<b>तुम्ही इथे आहात (तुमचे लोकेशन)</b>");
+                    if (map) {
+                        if (userMarker) {
+                            userMarker.setLatLng(userLatLng);
+                        } else {
+                            let userIcon = L.divIcon({
+                                className: 'custom-user-icon',
+                                html: '<div class="user-dot" style="width:16px; height:16px; background:#2563eb; border:3px solid white; border-radius:50%; box-shadow:0 0 10px rgba(0,0,0,0.4);"></div>',
+                                iconSize: [16, 16]
+                            });
+                            userMarker = L.marker(userLatLng, { icon: userIcon });
+                        }
+                        userMarker.addTo(map);
                     }
                 }, (error) => {
                     console.log("Location error: " + error.message);
-                }, { enableHighAccuracy: true });
+                    alert("कृपया जीपीएस (Location) चालू ठेवा, जेणेकरून तुमचे अचूक अंतर कळू शकेल.");
+                }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            } else {
+                alert("तुमचा ब्राउझर जीपीएस सपोर्ट करत नाही.");
             }
         }
 
@@ -621,27 +628,32 @@
                 iconAnchor: [22, 22]
             });
 
-            if (!map) {
-                map = L.map('map', { 
-                    maxBounds: sambhajinagarBounds, 
-                    minZoom: 12, 
-                    maxZoom: 17,
-                    layers: [standardLayer] 
-                }).setView([matchedBus.lat, matchedBus.lng], 15);
+         db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
+                let liveData = snapshot.val();
+                if (liveData && map && busMarker) {
+                    let newLat = liveData.lat;
+                    let newLng = liveData.lng;
+                    
+                    busMarker.setLatLng([newLat, newLng]);
+                    map.panTo([newLat, newLng], { animate: true, duration: 0.5 });
 
-                L.control.layers(baseMaps).addTo(map);
-                
-                busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map)
-                    .bindPopup(`<b>${matchedBus.busName}</b><br>लाइव्ह ट्रॅकिंग चालू आहे`).openPopup();
-                
-                if (userLatLng && userMarker) {
-                    userMarker.addTo(map);
+                    // लाईव्ह अपडेट दरम्यान सुद्धा युजरचा डॉट कायम ठेवण्यासाठी
+                    if (userLatLng && userMarker) {
+                        userMarker.addTo(map);
+                    }
+
+                    let activeLat = userLatLng ? userLatLng[0] : 19.8762;
+                    let activeLng = userLatLng ? userLatLng[1] : 75.3433;
+                    let dist = calculateDistance(activeLat, activeLng, newLat, newLng);
+                    let timeMin = Math.round(dist * 3);
+                    
+                    if (userLatLng) {
+                        etaBox.innerHTML = `📍 बस तुमच्यापासून सुमारे ${dist} किमी अंतरावर आहे (~${timeMin} मिनिटे)`;
+                    } else {
+                        etaBox.innerHTML = `📍 (जीपीएस जोडत आहे) संभाजीनगर मध्यभागापासून अंदाजे ${dist} किमी अंतर (~${timeMin} मिनिटे)`;
+                    }
                 }
-            } else {
-                map.setView([matchedBus.lat, matchedBus.lng], 15);
-                busMarker.setLatLng([matchedBus.lat, matchedBus.lng]);
-            }
-            setTimeout(() => { map.invalidateSize(); }, 200);
+            });
 
             db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
                 let liveData = snapshot.val();
