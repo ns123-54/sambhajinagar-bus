@@ -343,7 +343,7 @@
             </table>
         </div>
 
-        <!-- शोध कार्ड (फक्त एका स्टॉपच्या नावावर शोधण्यासाठी) -->
+        <!-- शोध कार्ड -->
         <div class="search-card">
             <div class="tab-buttons">
                 <button class="tab-btn active" onclick="switchTab('stop')">स्टॉपनुसार शोध</button>
@@ -460,33 +460,33 @@
         let userLatLng = null;
         let userMarker = null;
 
-        // युजरचे स्वतःचे जीपीएस लोकेशन ट्रॅक करणे
-        function trackUserLocation() {
+        // वेबसाईट उघडल्याबरोबर लगेच युजरचे लोकेशन मागणे
+        function requestUserLocation() {
             if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((position) => {
+                navigator.geolocation.getCurrentPosition((position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
                     userLatLng = [lat, lng];
 
-                    if (map) {
-                        if (userMarker) {
-                            userMarker.setLatLng(userLatLng);
-                        } else {
-                            let userIcon = L.divIcon({
-                                className: 'custom-user-icon',
-                                html: '<div class="user-dot" style="width:16px; height:16px;"></div>',
-                                iconSize: [16, 16]
-                            });
-                            userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(map)
-                                .bindPopup("<b>तुम्ही इथे आहात (तुमचे लोकेशन)</b>");
-                        }
+                    if (map && !userMarker) {
+                        let userIcon = L.divIcon({
+                            className: 'custom-user-icon',
+                            html: '<div class="user-dot" style="width:16px; height:16px; background:#2563eb; border:3px solid white; border-radius:50%; box-shadow:0 0 10px rgba(0,0,0,0.4);"></div>',
+                            iconSize: [16, 16]
+                        });
+                        userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(map)
+                            .bindPopup("<b>तुम्ही इथे आहात (तुमचे लोकेशन)</b>");
                     }
                 }, (error) => {
-                    console.log("Geolocation error: " + error.message);
+                    console.log("Location error: " + error.message);
                 }, { enableHighAccuracy: true });
             }
         }
-        trackUserLocation();
+
+        // पेज लोड झाल्यावर लगेच लोकेशन विचारणे
+        window.onload = function() {
+            requestUserLocation();
+        }
 
         function useCurrentLocation() {
             document.getElementById('singleStopInput').value = "अदालत रोड (Adalat Road)";
@@ -565,12 +565,18 @@
             document.getElementById('busRouteSub').innerText = "मार्ग: " + matchedBus.routeText;
 
             let etaBox = document.getElementById('etaBox');
+            
+            // जर जीपीएस लोकेशन मिळाले नाही, तर संभाजीनगर मध्यभाग गृहीत धरून अंतर दाखवणे
+            let currentLat = userLatLng ? userLatLng[0] : 19.8762;
+            let currentLng = userLatLng ? userLatLng[1] : 75.3433;
+
+            let dist = calculateDistance(currentLat, currentLng, matchedBus.lat, matchedBus.lng);
+            let timeMin = Math.round(dist * 3);
+            
             if (userLatLng) {
-                let dist = calculateDistance(userLatLng[0], userLatLng[1], matchedBus.lat, matchedBus.lng);
-                let timeMin = Math.round(dist * 3);
                 etaBox.innerHTML = `📍 बस तुमच्यापासून सुमारे ${dist} किमी अंतरावर आहे (~${timeMin} मिनिटे)`;
             } else {
-                etaBox.innerHTML = `📍 जीपीएस लोकेशन शोधत आहे...`;
+                etaBox.innerHTML = `📍 (जीपीएस जोडत आहे) संभाजीनगर मध्यभागापासून अंदाजे ${dist} किमी अंतर (~${timeMin} मिनिटे)`;
             }
 
             let crowdClass = `crowd-${matchedBus.crowd}`;
@@ -646,10 +652,15 @@
                     busMarker.setLatLng([newLat, newLng]);
                     map.panTo([newLat, newLng], { animate: true, duration: 0.5 });
 
+                    let activeLat = userLatLng ? userLatLng[0] : 19.8762;
+                    let activeLng = userLatLng ? userLatLng[1] : 75.3433;
+                    let dist = calculateDistance(activeLat, activeLng, newLat, newLng);
+                    let timeMin = Math.round(dist * 3);
+                    
                     if (userLatLng) {
-                        let dist = calculateDistance(userLatLng[0], userLatLng[1], newLat, newLng);
-                        let timeMin = Math.round(dist * 3);
                         etaBox.innerHTML = `📍 बस तुमच्यापासून सुमारे ${dist} किमी अंतरावर आहे (~${timeMin} मिनिटे)`;
+                    } else {
+                        etaBox.innerHTML = `📍 (जीपीएस जोडत आहे) संभाजीनगर मध्यभागापासून अंदाजे ${dist} किमी अंतर (~${timeMin} मिनिटे)`;
                     }
                 }
             });
