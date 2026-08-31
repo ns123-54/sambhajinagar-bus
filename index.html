@@ -185,39 +185,6 @@
             box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);
         }
 
-        .fav-btn {
-            background: #f59e0b;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        /* क्विक फिल्टर पिल्स */
-        .quick-pills {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 8px;
-            margin-bottom: 16px;
-        }
-        .pill {
-            background: #e2e8f0;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-sub);
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .pill:hover { background: var(--primary); color: white; }
-
         /* मॅप स्टाईल */
         #map {
             height: 380px;
@@ -229,7 +196,6 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        /* बस इमोजीसाठी स्टाईल */
         .bus-emoji-icon {
             font-size: 32px;
             background: white;
@@ -243,7 +209,6 @@
             border: 2px solid var(--primary);
         }
 
-        /* युजरच्या स्वतःच्या लोकेशनसाठी डॉट */
         .user-dot {
             background: #2563eb;
             border: 3px solid white;
@@ -378,39 +343,25 @@
             </table>
         </div>
 
-        <!-- क्विक फिल्टर पिल्स (Quick Filter Buttons) -->
-        <div class="quick-pills">
-            <button class="pill" onclick="quickSearch('सिडको', 'क्रांती चौक')">सिडको ➔ क्रांती चौक</button>
-            <button class="pill" onclick="quickSearch('बस स्टँड', 'रेल्वे स्टेशन')">बस स्टँड ➔ रेल्वे स्टेशन</button>
-            <button class="pill" onclick="quickSearch('सिडको एन-१', 'सिंहासन चौक')">एन-१ ➔ सिंहासन</button>
-        </div>
-
-        <!-- शोध कार्ड -->
+        <!-- शोध कार्ड (फक्त एका स्टॉपच्या नावावर शोधण्यासाठी) -->
         <div class="search-card">
             <div class="tab-buttons">
-                <button class="tab-btn active" onclick="switchTab('route')">मार्कानुसार</button>
+                <button class="tab-btn active" onclick="switchTab('stop')">स्टॉपनुसार शोध</button>
                 <button class="tab-btn" onclick="switchTab('busNo')">बस नंबरनुसार</button>
             </div>
 
-            <!-- १. मार्कानुसार शोध -->
-            <div id="routeSearchSection" class="search-section active">
+            <!-- १. स्टॉपनुसार शोध -->
+            <div id="stopSearchSection" class="search-section active">
                 <div class="input-group">
-                    <label for="sourceInput">📍 कुठून निघायचे आहे?</label>
+                    <label for="singleStopInput">📍 बस स्टॉपचे नाव टाका:</label>
                     <div class="input-wrapper">
-                        <input type="text" id="sourceInput" placeholder="उदा. सिडको" oninput="filterSuggestions('sourceInput', 'sourceSuggestions')" autocomplete="off">
-                        <button class="gps-btn" onclick="getNearbyStops()" title="नजीकचे स्टॉप्स">📍</button>
+                        <input type="text" id="singleStopInput" placeholder="उदा. अदालत रोड" oninput="filterSuggestions('singleStopInput', 'stopSuggestions')" autocomplete="off">
+                        <button class="gps-btn" onclick="useCurrentLocation()" title="माझे लोकेशन">📍</button>
                     </div>
-                    <div id="sourceSuggestions" class="suggestions-list"></div>
-                </div>
-                
-                <div class="input-group">
-                    <label for="destInput">🏁 कुठे जायचे आहे?</label>
-                    <input type="text" id="destInput" placeholder="उदा. क्रांती चौक" oninput="filterSuggestions('destInput', 'destSuggestions')" autocomplete="off">
-                    <div id="destSuggestions" class="suggestions-list"></div>
+                    <div id="stopSuggestions" class="suggestions-list"></div>
                 </div>
 
-                <button class="search-submit-btn" onclick="findBusRoute()">बस शोधा</button>
-                <button class="fav-btn" onclick="saveFavoriteRoute()">⭐ हा मार्ग सेव्ह करा (Favorite)</button>
+                <button class="search-submit-btn" onclick="findBusByStop()">बस शोधा</button>
             </div>
 
             <!-- २. बस नंबरनुसार शोध -->
@@ -425,18 +376,6 @@
                 </div>
                 <button class="search-submit-btn" onclick="findBusByNumber()">बसची स्थिती पहा</button>
             </div>
-        </div>
-
-        <!-- फेव्हरेट मार्ग -->
-        <div class="feature-card" id="favCard" style="display:none;">
-            <h4 style="margin:0 0 8px 0; color:var(--primary); font-size:15px;">⭐ तुमचे सेव्ह केलेले मार्ग:</h4>
-            <div id="favRouteText" style="font-weight:600; color:var(--text-sub); font-size:14px; cursor:pointer;" onclick="loadFavorite()"></div>
-        </div>
-
-        <!-- नजीकचे स्टॉप्स -->
-        <div class="feature-card" id="nearbyCard" style="display:none;">
-            <h4 style="margin:0 0 8px 0; color:var(--accent); font-size:15px;">📍 तुमच्या जवळील बस स्टॉप्स:</h4>
-            <ul id="nearbyList" style="margin:0; padding-left:20px; font-weight:600; font-size:14px; color:var(--text-main);"></ul>
         </div>
 
         <!-- नकाशा -->
@@ -466,8 +405,6 @@
         const routesData = [
             {
                 id: "101",
-                source: "सिडको", sourceEn: "CIDCO",
-                destination: "क्रांती चौक", destinationEn: "Kranti Chowk",
                 busName: "बस १०१ - सिडको एक्स्प्रेस",
                 routeText: "सिडको ➔ मोंढा नाका ➔ क्रांती चौक",
                 departureTimes: "०८:०० वा., १०:०० वा., १२:३० वा.",
@@ -481,8 +418,6 @@
             },
             {
                 id: "102",
-                source: "मध्यवर्ती बस स्टँड", sourceEn: "Central Bus Stand",
-                destination: "रेल्वे स्टेशन", destinationEn: "Railway Station",
                 busName: "बस १०२ - रेल्वे स्पेशल",
                 routeText: "मध्यवर्ती बस स्टँड ➔ अदालत रोड ➔ रेल्वे स्टेशन",
                 departureTimes: "०९:१५ वा., ११:४५ वा., ०३:१५ वा.",
@@ -496,8 +431,6 @@
             },
             {
                 id: "103",
-                source: "सिडको एन-१", sourceEn: "CIDCO N-1",
-                destination: "सिंहासन चौक", destinationEn: "Sinhasan Chowk",
                 busName: "बस १०३ - एन-१ स्पेशल",
                 routeText: "सिडको एन-१ ➔ सिडको एन-५ ➔ सिंहासन चौक",
                 departureTimes: "०८:३० वा., ११:०० वा.",
@@ -527,7 +460,7 @@
         let userLatLng = null;
         let userMarker = null;
 
-        // प्रवाशाचे स्वतःचे जीपीएस लोकेशन ट्रॅक करणे
+        // युजरचे स्वतःचे जीपीएस लोकेशन ट्रॅक करणे
         function trackUserLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition((position) => {
@@ -555,7 +488,11 @@
         }
         trackUserLocation();
 
-        // अंतर मोजण्यासाठी फंक्शन (Haversine Formula)
+        function useCurrentLocation() {
+            document.getElementById('singleStopInput').value = "अदालत रोड (Adalat Road)";
+            findBusByStop();
+        }
+
         function calculateDistance(lat1, lon1, lat2, lon2) {
             function toRad(x) { return x * Math.PI / 180; }
             let R = 6371;
@@ -572,9 +509,9 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.search-section').forEach(sec => sec.classList.remove('active'));
 
-            if (tab === 'route') {
+            if (tab === 'stop') {
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.getElementById('routeSearchSection').classList.add('active');
+                document.getElementById('stopSearchSection').classList.add('active');
             } else {
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('busNoSearchSection').classList.add('active');
@@ -593,57 +530,6 @@
         function toggleTimetable() {
             let ttCard = document.getElementById('timetableCard');
             ttCard.style.display = (ttCard.style.display === "block") ? "none" : "block";
-        }
-
-        function quickSearch(src, dest) {
-            document.getElementById('sourceInput').value = src;
-            document.getElementById('destInput').value = dest;
-            findBusRoute();
-        }
-
-        function getNearbyStops() {
-            document.getElementById('sourceInput').value = "सिडको (CIDCO)";
-            let nearbyCard = document.getElementById('nearbyCard');
-            let nearbyList = document.getElementById('nearbyList');
-            
-            nearbyCard.style.display = "block";
-            nearbyList.innerHTML = `
-                <li>सिडको एन-१ (अंतर: २०० मीटर)</li>
-                <li>सिडको बस स्टँड (अंतर: ५०० मीटर)</li>
-                <li>मोंढा नाका (अंतर: १.२ किमी)</li>
-            `;
-        }
-
-        function saveFavoriteRoute() {
-            let src = document.getElementById('sourceInput').value;
-            let dest = document.getElementById('destInput').value;
-            if(!src || !dest) {
-                alert("कृपया आधी 'कुठून' आणि 'कुठे' भरा!");
-                return;
-            }
-            let favText = `${src} ➔ ${dest}`;
-            localStorage.setItem('favRoute', favText);
-            document.getElementById('favCard').style.display = "block";
-            document.getElementById('favRouteText').innerText = favText;
-            alert("मार्ग यशस्वीरीत्या सेव्ह झाला!");
-        }
-
-        function loadFavorite() {
-            let saved = localStorage.getItem('favRoute');
-            if(saved) {
-                let parts = saved.split(' ➔ ');
-                document.getElementById('sourceInput').value = parts[0];
-                document.getElementById('destInput').value = parts[1];
-                findBusRoute();
-            }
-        }
-
-        window.onload = function() {
-            let saved = localStorage.getItem('favRoute');
-            if(saved) {
-                document.getElementById('favCard').style.display = "block";
-                document.getElementById('favRouteText').innerText = saved;
-            }
         }
 
         function filterSuggestions(inputId, listId) {
@@ -678,7 +564,6 @@
             document.getElementById('busNameTitle').innerText = matchedBus.busName;
             document.getElementById('busRouteSub').innerText = "मार्ग: " + matchedBus.routeText;
 
-            // ETA आणि अंतर कॅल्क्युलेशन अपडेट
             let etaBox = document.getElementById('etaBox');
             if (userLatLng) {
                 let dist = calculateDistance(userLatLng[0], userLatLng[1], matchedBus.lat, matchedBus.lng);
@@ -752,7 +637,6 @@
             }
             setTimeout(() => { map.invalidateSize(); }, 200);
 
-            // लाईव्ह लोकेशन अपडेट (Firebase)
             db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
@@ -771,20 +655,23 @@
             });
         }
 
-        function findBusRoute() {
-            let sourceVal = document.getElementById('sourceInput').value.trim().toLowerCase();
-            let destVal = document.getElementById('destInput').value.trim().toLowerCase();
+        function findBusByStop() {
+            let stopVal = document.getElementById('singleStopInput').value.trim().toLowerCase();
             document.querySelectorAll('.suggestions-list').forEach(el => el.innerHTML = "");
 
+            if (!stopVal) {
+                alert("कृपया आधी बस स्टॉपचे नाव टाका!");
+                return;
+            }
+
             let matchedBus = routesData.find(r => 
-                (r.source.toLowerCase().includes(sourceVal) || r.sourceEn.toLowerCase().includes(sourceVal)) && 
-                (r.destination.toLowerCase().includes(destVal) || r.destinationEn.toLowerCase().includes(destVal))
+                r.stops.some(stop => stop.name.toLowerCase().includes(stopVal))
             );
 
             if (matchedBus) {
                 displayBusResult(matchedBus);
             } else {
-                alert("माफ करा! या मार्गावर बस सापडली नाही.");
+                alert("माफ करा! या स्टॉपवर कोणतीही बस सापडली नाही.");
             }
         }
 
