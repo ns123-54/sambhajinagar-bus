@@ -67,6 +67,7 @@
         }
         .stop-btn { background: #dc2626; }
         .coords { font-size: 14px; color: #475569; margin-top: 15px; }
+        .info-box { font-size: 13px; color: #64748b; margin-top: 10px; background: #f8fafc; padding: 8px; border-radius: 6px;}
     </style>
 </head>
 <body>
@@ -96,6 +97,7 @@
         <div id="statusBox" class="status">ट्रॅकिंग बंद आहे</div>
         
         <div class="coords" id="coordsText">अक्षांश/रेखांश: अजून मिळालेले नाही</div>
+        <div class="info-box" id="wakeLockStatus">स्क्रीन लॉक प्रोटेक्शन: बंद</div>
         
         <button id="startBtn" class="btn" onclick="startTracking()">लाईव्ह ट्रॅकिंग सुरू करा</button>
         <button id="stopBtn" class="btn stop-btn" onclick="stopTracking()" style="display:none;">ट्रॅकिंग थांबवा</button>
@@ -115,20 +117,45 @@
 
         let watchId = null;
         let currentBusId = null;
-        const validPassword = "1234"; // येथे तू हवा तो सिक्रेट पासवर्ड सेट करू शकतोस (उदा. 1234)
+        let wakeLock = null;
+        const validPassword = "1234"; 
         
-        // प्रत्येक डिव्हाइससाठी एक युनिक आयडी तयार करणे
         let deviceId = localStorage.getItem('driver_device_id');
         if (!deviceId) {
             deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
             localStorage.setItem('driver_device_id', deviceId);
         }
 
+        // स्क्रीन बंद होऊ नये म्हणून Wake Lock चालू करणे
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('wakeLockStatus').innerText = "स्क्रीन लॉक प्रोटेक्शन: चालू 🟢 (स्क्रीन बंद होणार नाही)";
+                }
+            } catch (err) {
+                console.log("Wake Lock error: ", err);
+                document.getElementById('wakeLockStatus').innerText = "स्क्रीन लॉक प्रोटेक्शन: सपोर्ट नाही";
+            }
+        }
+
+        // Wake Lock रिलीज करणे
+        async function releaseWakeLock() {
+            if (wakeLock !== null) {
+                try {
+                    await wakeLock.release();
+                    wakeLock = null;
+                    document.getElementById('wakeLockStatus').innerText = "स्क्रीन लॉक प्रोटेक्शन: बंद";
+                } catch (err) {
+                    console.log("Wake Lock release error: ", err);
+                }
+            }
+        }
+
         function startTracking() {
             let busSelect = document.getElementById('busSelect').value;
             let passwordInput = document.getElementById('driverPassword').value;
 
-            // १. पासवर्ड तपासणी
             if (passwordInput !== validPassword) {
                 alert("चुकीचा पासवर्ड! कृपया योग्य ड्रायव्हर पिन टाका.");
                 return;
@@ -136,7 +163,6 @@
 
             currentBusId = busSelect;
 
-            // २. डिव्हाइस लॉक तपासणे (दुसऱ्या फोनवरून आधीच चालू आहे का ते पाहणे)
             database.ref(`locks/bus_${currentBusId}`).once('value', (snapshot) => {
                 let lockData = snapshot.val();
 
@@ -145,7 +171,6 @@
                     return;
                 }
 
-                // जर लॉक मोकळा असेल किंवा याच फोनने केला असेल तर ट्रॅकिंग ऑन करणे
                 database.ref(`locks/bus_${currentBusId}`).set({
                     active: true,
                     deviceId: deviceId
@@ -160,6 +185,9 @@
 
                     document.getElementById('statusBox').innerText = "जीपीएस सुरू होत आहे...";
                     
+                    // स्क्रीन लॉक होणार नाही याची खात्री करणे
+                    requestWakeLock();
+
                     watchId = navigator.geolocation.watchPosition(
                         (position) => {
                             let lat = position.coords.latitude;
@@ -178,12 +206,12 @@
                         },
                         (error) => {
                             alert("लोकेशन एरर: " + error.message);
-                            document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी";
+                            document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी / सिग्नल नाही";
                         },
                         {
                             enableHighAccuracy: true,
                             maximumAge: 0,
-                            timeout: 5000
+                            timeout: Infinity
                         }
                     );
 
@@ -201,8 +229,9 @@
                 watchId = null;
             }
 
+            releaseWakeLock();
+
             if (currentBusId) {
-                // डेटाबेसवरून बसचे लोकेशन आणि लॉक काढणे
                 database.ref(`buses/bus_${currentBusId}`).remove();
                 database.ref(`locks/bus_${currentBusId}`).remove();
             }
