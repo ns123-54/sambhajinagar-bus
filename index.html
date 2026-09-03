@@ -500,7 +500,6 @@
             document.getElementById('viewStatusBtn').innerText = t.viewStatusBtn;
             document.getElementById('stopsHeading').innerText = t.stopsHeading;
 
-            // ड्रॉपडाउन मधील नावांची भाषा बदलणे
             let busSelect = document.getElementById('busSelect');
             busSelect.options[0].text = t.bus101;
             busSelect.options[1].text = t.bus102;
@@ -702,8 +701,6 @@
             });
             document.getElementById('timelineBox').innerHTML = timelineHTML;
 
-            let sambhajinagarBounds = [[19.8000, 75.2500], [19.9500, 75.4500]];
-
             let standardLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
             let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri' });
             let trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
@@ -718,10 +715,10 @@
             });
 
             if (!map) {
+                // maxBounds काढल्यामुळे आता संभाजीनगरच्या बाहेरचाही map दिसेल
                 map = L.map('map', { 
-                    maxBounds: sambhajinagarBounds, 
-                    minZoom: 12, 
-                    maxZoom: 17,
+                    minZoom: 5, 
+                    maxZoom: 18,
                     layers: [standardLayer] 
                 }).setView([matchedBus.lat, matchedBus.lng], 15);
 
