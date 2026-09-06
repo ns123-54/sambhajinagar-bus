@@ -229,7 +229,7 @@
         }
 
         .bus-emoji-icon {
-            font-size: 32px;
+            font-size: 30px;
             background: white;
             border-radius: 50%;
             width: 44px;
@@ -239,6 +239,20 @@
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             border: 2px solid var(--primary);
+        }
+
+        .user-emoji-icon {
+            font-size: 26px;
+            background: #2563eb;
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid white;
         }
 
         .result-card { display: none; }
@@ -563,7 +577,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let userLatLng = null;
+        let userLatLng = [19.8770, 75.3400]; // डीफॉल्ट संभाजीनगर मध्यवर्ती लोकेशन
 
         function requestUserLocation() {
             if (navigator.geolocation) {
@@ -639,7 +653,7 @@
             });
         }
 
-        var map, busMarker, activeFirebaseRef = null;
+        var map, busMarker, userMarker, activeFirebaseRef = null;
         let isSatelliteView = false;
         let googleRoadmapLayer, googleHybridLayer;
 
@@ -672,7 +686,7 @@
             document.getElementById('busNameTitle').innerText = matchedBus.busName[currentLang];
             document.getElementById('busRouteSub').innerText = (currentLang === 'mr' ? "मार्ग: " : "Route: ") + matchedBus.routeText[currentLang];
 
-            let dist = calculateDistance(userLatLng ? userLatLng[0] : matchedBus.lat, userLatLng ? userLatLng[1] : matchedBus.lng, matchedBus.lat, matchedBus.lng);
+            let dist = calculateDistance(userLatLng[0], userLatLng[1], matchedBus.lat, matchedBus.lng);
             let distanceText = currentLang === 'mr' ? `📍 बस अंदाजे ${dist} किमी अंतरावर आहे` : `📍 Bus is approximately ${dist} km away`;
             document.getElementById('etaBox').innerHTML = distanceText;
 
@@ -701,10 +715,16 @@
 
             let activeLayer = isSatelliteView ? googleHybridLayer : googleRoadmapLayer;
             let busIcon = L.divIcon({ className: 'bus-emoji-icon', html: '🚍', iconSize: [44, 44], iconAnchor: [22, 22] });
+            let userIcon = L.divIcon({ className: 'user-emoji-icon', html: '📍', iconSize: [40, 40], iconAnchor: [20, 20] });
 
             if (!map) {
-                map = L.map('map', { layers: [activeLayer] }).setView([matchedBus.lat, matchedBus.lng], 15);
-                busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map);
+                map = L.map('map', { layers: [activeLayer] });
+                busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map).bindPopup("Bus Location");
+                userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(map).bindPopup("Your Location");
+                
+                // दोन्ही मार्कर एकाच फ्रेममध्ये दिसावेत म्हणून View सेट करणे
+                let group = new L.featureGroup([busMarker, userMarker]);
+                map.fitBounds(group.getBounds().pad(0.2));
             } else {
                 map.eachLayer((layer) => {
                     if (layer instanceof L.TileLayer) {
@@ -712,8 +732,12 @@
                     }
                 });
                 activeLayer.addTo(map);
-                map.setView([matchedBus.lat, matchedBus.lng], 15);
+                
                 busMarker.setLatLng([matchedBus.lat, matchedBus.lng]);
+                userMarker.setLatLng(userLatLng);
+
+                let group = new L.featureGroup([busMarker, userMarker]);
+                map.fitBounds(group.getBounds().pad(0.2));
             }
 
             updateMapToggleButtonText();
@@ -725,7 +749,6 @@
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
                     busMarker.setLatLng([liveData.lat, liveData.lng]);
-                    map.panTo([liveData.lat, liveData.lng]);
                 }
             });
         }
