@@ -67,7 +67,7 @@
             align-items: center;
         }
 
-        .header-btn {
+        .header-btn, .lang-select {
             padding: 6px 10px;
             border-radius: 6px;
             border: none;
@@ -76,17 +76,6 @@
             font-size: 12px;
             background: white;
             color: var(--primary);
-        }
-
-        .lang-select {
-            padding: 5px 8px;
-            border-radius: 6px;
-            border: none;
-            font-weight: 600;
-            font-size: 12px;
-            background: white;
-            color: var(--primary);
-            cursor: pointer;
         }
 
         .main-container {
@@ -106,7 +95,7 @@
         }
 
         .timetable-card {
-            display: none; /* सुरुवातीला बंद राहील */
+            display: none; 
         }
 
         .tab-buttons {
@@ -238,13 +227,6 @@
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             border: 2px solid var(--primary);
-        }
-
-        .user-dot {
-            background: #2563eb;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.4);
         }
 
         .result-card { display: none; }
@@ -437,7 +419,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // भाषा शब्दकोश (Translations)
         const translations = {
             mr: {
                 appTitle: "🚍 संभाजीनगर बस लाईव्ह",
@@ -661,7 +642,7 @@
             });
         }
 
-        var map, busMarker;
+        var map, busMarker, activeFirebaseRef = null;
 
         function displayBusResult(matchedBus) {
             let resultCard = document.getElementById('resultCard');
@@ -674,8 +655,8 @@
             document.getElementById('busRouteSub').innerText = (currentLang === 'mr' ? "मार्ग: " : "Route: ") + matchedBus.routeText[currentLang];
 
             let etaBox = document.getElementById('etaBox');
-            let currentLat = userLatLng ? userLatLng[0] : 19.8762;
-            let currentLng = userLatLng ? userLatLng[1] : 75.3433;
+            let currentLat = userLatLng ? userLatLng[0] : matchedBus.lat;
+            let currentLng = userLatLng ? userLatLng[1] : matchedBus.lng;
 
             let dist = calculateDistance(currentLat, currentLng, matchedBus.lat, matchedBus.lng);
             let timeMin = Math.round(dist * 3);
@@ -703,9 +684,8 @@
 
             let standardLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
             let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri' });
-            let trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
 
-            let baseMaps = { "🗺️ Standard": standardLayer, "🛰️ Satellite": satelliteLayer, "🚦 Traffic": trafficLayer };
+            let baseMaps = { "🗺️ Standard": standardLayer, "🛰️ Satellite": satelliteLayer };
 
             let busIcon = L.divIcon({
                 className: 'bus-emoji-icon',
@@ -715,7 +695,6 @@
             });
 
             if (!map) {
-                // maxBounds काढल्यामुळे आता संभाजीनगरच्या बाहेरचाही map दिसेल
                 map = L.map('map', { 
                     minZoom: 5, 
                     maxZoom: 18,
@@ -737,7 +716,13 @@
 
             setTimeout(() => { map.invalidateSize(); }, 200);
 
-            db.ref(`buses/bus_${matchedBus.id}`).on('value', (snapshot) => {
+            // जुनी Firebase listener काढून टाकणे जेणेकरून ओव्हरलॅप होणार नाही
+            if (activeFirebaseRef) {
+                activeFirebaseRef.off();
+            }
+
+            activeFirebaseRef = db.ref(`buses/bus_${matchedBus.id}`);
+            activeFirebaseRef.on('value', (snapshot) => {
                 let liveData = snapshot.val();
                 if (liveData && map && busMarker) {
                     let newLat = liveData.lat;
