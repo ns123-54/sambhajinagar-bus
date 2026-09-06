@@ -82,9 +82,7 @@
             margin-bottom: 20px;
         }
 
-        .timetable-card {
-            display: none; 
-        }
+        .timetable-card { display: none; }
 
         .tab-buttons {
             display: flex;
@@ -412,7 +410,7 @@
         <!-- नकाशा व मॅप स्टाईल टॉगल बटण -->
         <div class="map-wrapper" id="mapWrapper">
             <div id="map"></div>
-            <button id="mapStyleToggleBtn" class="map-style-control" onclick="toggleMapStyle()">🛰️ सॅटेलाइट + नावे</button>
+            <button id="mapStyleToggleBtn" class="map-style-control" onclick="toggleMapStyle()">🛰️ Google सॅटेलाइट</button>
         </div>
 
         <!-- निकाल आणि माहिती -->
@@ -454,8 +452,8 @@
                 bus101: "बस १०१ - सिडको एक्स्प्रेस",
                 bus102: "बस १०२ - रेल्वे स्पेशल",
                 bus103: "बस १०३ - एन-१ स्पेशल",
-                satelliteBtn: "🛰️ सॅटेलाइट + नावे",
-                normalBtn: "🗺️ नॉर्मल मॅप"
+                satelliteBtn: "🛰️ Google सॅटेलाइट",
+                roadmapBtn: "🗺️ Google रोडमॅप"
             },
             en: {
                 appTitle: "🚍 Chhatrapati Sambhajinagar Bus Live",
@@ -475,8 +473,8 @@
                 bus101: "Bus 101 - CIDCO Express",
                 bus102: "Bus 102 - Railway Special",
                 bus103: "Bus 103 - N-1 Special",
-                satelliteBtn: "🛰️ Satellite + Labels",
-                normalBtn: "🗺️ Normal Map"
+                satelliteBtn: "🛰️ Google Satellite",
+                roadmapBtn: "🗺️ Google Roadmap"
             }
         };
 
@@ -643,13 +641,13 @@
 
         var map, busMarker, activeFirebaseRef = null;
         let isSatelliteView = false;
-        let normalLayer, hybridLayer;
+        let googleRoadmapLayer, googleHybridLayer;
 
         function updateMapToggleButtonText() {
             let t = translations[currentLang];
             let btn = document.getElementById('mapStyleToggleBtn');
             if (btn) {
-                btn.innerHTML = isSatelliteView ? t.normalBtn : t.satelliteBtn;
+                btn.innerHTML = isSatelliteView ? t.roadmapBtn : t.satelliteBtn;
             }
         }
 
@@ -658,11 +656,11 @@
             isSatelliteView = !isSatelliteView;
             
             if (isSatelliteView) {
-                map.removeLayer(normalLayer);
-                hybridLayer.addTo(map);
+                map.removeLayer(googleRoadmapLayer);
+                googleHybridLayer.addTo(map);
             } else {
-                map.removeLayer(hybridLayer);
-                normalLayer.addTo(map);
+                map.removeLayer(googleHybridLayer);
+                googleRoadmapLayer.addTo(map);
             }
             updateMapToggleButtonText();
         }
@@ -688,38 +686,33 @@
             });
             document.getElementById('timelineBox').innerHTML = timelineHTML;
 
-            // Map layers setup (Normal & Hybrid with Names)
-            normalLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors'
+            // Google Maps Roadmap & Google Hybrid Satellite Tiles setup
+            googleRoadmapLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '&copy; Google Maps'
             });
 
-            let satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: 'Tiles &copy; Esri'
+            googleHybridLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '&copy; Google Maps'
             });
 
-            let satelliteLabels = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: 'Names &copy; Esri'
-            });
-
-            hybridLayer = L.layerGroup([satelliteBase, satelliteLabels]);
-
-            let activeLayer = isSatelliteView ? hybridLayer : normalLayer;
+            let activeLayer = isSatelliteView ? googleHybridLayer : googleRoadmapLayer;
             let busIcon = L.divIcon({ className: 'bus-emoji-icon', html: '🚍', iconSize: [44, 44], iconAnchor: [22, 22] });
 
             if (!map) {
-                map = L.map('map', { layers: [activeLayer] }).setView([matchedBus.lat, matchedBus.lng], 14);
+                map = L.map('map', { layers: [activeLayer] }).setView([matchedBus.lat, matchedBus.lng], 15);
                 busMarker = L.marker([matchedBus.lat, matchedBus.lng], { icon: busIcon }).addTo(map);
             } else {
                 map.eachLayer((layer) => {
-                    if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
+                    if (layer instanceof L.TileLayer) {
                         map.removeLayer(layer);
                     }
                 });
                 activeLayer.addTo(map);
-                map.setView([matchedBus.lat, matchedBus.lng], 14);
+                map.setView([matchedBus.lat, matchedBus.lng], 15);
                 busMarker.setLatLng([matchedBus.lat, matchedBus.lng]);
             }
 
