@@ -119,12 +119,6 @@
         let currentBusId = null;
         let wakeLock = null;
         const validPassword = "1234"; 
-        
-        let deviceId = localStorage.getItem('driver_device_id');
-        if (!deviceId) {
-            deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('driver_device_id', deviceId);
-        }
 
         // स्क्रीन बंद होऊ नये म्हणून Wake Lock चालू करणे
         async function requestWakeLock() {
@@ -163,64 +157,50 @@
 
             currentBusId = busSelect;
 
-            database.ref(`locks/bus_${currentBusId}`).once('value', (snapshot) => {
-                let lockData = snapshot.val();
+            if (navigator.geolocation) {
+                document.getElementById('loginSection').style.display = "none";
+                let busText = document.getElementById('busSelect').options[document.getElementById('busSelect').selectedIndex].text;
+                let selectedDisplay = document.getElementById('selectedBusDisplay');
+                selectedDisplay.innerText = "सध्या सुरू बस: " + busText;
+                selectedDisplay.style.display = "block";
 
-                if (lockData && lockData.active && lockData.deviceId !== deviceId) {
-                    alert("माफ करा! या बसचे ट्रॅकिंग आधीच दुसऱ्या मोबाईलवरून सुरू आहे.");
-                    return;
-                }
+                document.getElementById('statusBox').innerText = "जीपीएस सुरू होत आहे...";
+                
+                // स्क्रीन लॉक होणार नाही याची खात्री करणे
+                requestWakeLock();
 
-                database.ref(`locks/bus_${currentBusId}`).set({
-                    active: true,
-                    deviceId: deviceId
-                });
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+                        
+                        document.getElementById('statusBox').innerText = "लाईव्ह ट्रॅकिंग चालू आहे 🟢";
+                        document.getElementById('statusBox').className = "status active-status";
+                        document.getElementById('coordsText').innerText = `अक्षांश (Lat): ${lat.toFixed(4)}, रेखांश (Lng): ${lng.toFixed(4)}`;
+                        
+                        // Firebase वर लोकेशन पाठवणे
+                        database.ref(`buses/bus_${currentBusId}`).set({
+                            lat: lat,
+                            lng: lng,
+                            updatedAt: new Date().toLocaleTimeString()
+                        });
+                    },
+                    (error) => {
+                        alert("लोकेशन एरर: " + error.message);
+                        document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी / सिग्नल नाही";
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: Infinity
+                    }
+                );
 
-                if (navigator.geolocation) {
-                    document.getElementById('loginSection').style.display = "none";
-                    let busText = document.getElementById('busSelect').options[document.getElementById('busSelect').selectedIndex].text;
-                    let selectedDisplay = document.getElementById('selectedBusDisplay');
-                    selectedDisplay.innerText = "सध्या सुरू बस: " + busText;
-                    selectedDisplay.style.display = "block";
-
-                    document.getElementById('statusBox').innerText = "जीपीएस सुरू होत आहे...";
-                    
-                    // स्क्रीन लॉक होणार नाही याची खात्री करणे
-                    requestWakeLock();
-
-                    watchId = navigator.geolocation.watchPosition(
-                        (position) => {
-                            let lat = position.coords.latitude;
-                            let lng = position.coords.longitude;
-                            
-                            document.getElementById('statusBox').innerText = "लाईव्ह ट्रॅकिंग चालू आहे 🟢";
-                            document.getElementById('statusBox').className = "status active-status";
-                            document.getElementById('coordsText').innerText = `अक्षांश (Lat): ${lat.toFixed(4)}, रेखांश (Lng): ${lng.toFixed(4)}`;
-                            
-                            // Firebase वर लोकेशन पाठवणे
-                            database.ref(`buses/bus_${currentBusId}`).set({
-                                lat: lat,
-                                lng: lng,
-                                updatedAt: new Date().toLocaleTimeString()
-                            });
-                        },
-                        (error) => {
-                            alert("लोकेशन एरर: " + error.message);
-                            document.getElementById('statusBox').innerText = "ट्रॅकिंग अयशस्वी / सिग्नल नाही";
-                        },
-                        {
-                            enableHighAccuracy: true,
-                            maximumAge: 0,
-                            timeout: Infinity
-                        }
-                    );
-
-                    document.getElementById('startBtn').style.display = "none";
-                    document.getElementById('stopBtn').style.display = "block";
-                } else {
-                    alert("तुमचा ब्राऊजर जीपीएस सपोर्ट करत नाही!");
-                }
-            });
+                document.getElementById('startBtn').style.display = "none";
+                document.getElementById('stopBtn').style.display = "block";
+            } else {
+                alert("तुमचा ब्राऊजर जीपीएस सपोर्ट करत नाही!");
+            }
         }
 
         function stopTracking() {
@@ -233,7 +213,6 @@
 
             if (currentBusId) {
                 database.ref(`buses/bus_${currentBusId}`).remove();
-                database.ref(`locks/bus_${currentBusId}`).remove();
             }
 
             document.getElementById('statusBox').innerText = "ट्रॅकिंग बंद आहे";
