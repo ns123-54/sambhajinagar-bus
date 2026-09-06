@@ -66,7 +66,6 @@
             color: var(--primary);
         }
 
-        /* मुख्य कंटेनर आता पूर्ण रुंदी व्यापेल आणि छान दिसेल */
         .main-container {
             max-width: 800px;
             margin: 20px auto;
@@ -483,7 +482,7 @@
                 busName: { mr: "बस १०१ - सिडको एक्स्प्रेस", en: "Bus 101 - CIDCO Express" },
                 routeText: { mr: "सिडको ➔ मोंढा नाका ➔ क्रांती चौक", en: "CIDCO ➔ Mondha Naka ➔ Kranti Chowk" },
                 departureTimes: "०८:०० वा., १०:०० वा., १२:३० वा.",
-                crowd: "medium", crowdText: "मध्यम गर्दी (Medium Crowd)",
+                crowd: "medium", crowdText: { mr: "मध्यम गर्दी (Medium Crowd)", en: "Medium Crowd" },
                 lat: 19.8762, lng: 75.3433,
                 stops: [
                     { name: { mr: "सिडको (CIDCO)", en: "CIDCO" }, time: "१०:०० AM", status: "passed" },
@@ -496,7 +495,7 @@
                 busName: { mr: "बस १०२ - रेल्वे स्पेशल", en: "Bus 102 - Railway Special" },
                 routeText: { mr: "मध्यवर्ती बस स्टँड ➔ अदालत रोड ➔ रेल्वे स्टेशन", en: "CBS ➔ Adalat Road ➔ Railway Station" },
                 departureTimes: "०९:१५ वा., ११:४५ वा., ०३:१५ वा.",
-                crowd: "low", crowdText: "मोकळी बस (Low Crowd)",
+                crowd: "low", crowdText: { mr: "मोकळी बस (Low Crowd)", en: "Low Crowd" },
                 lat: 19.8850, lng: 75.3250,
                 stops: [
                     { name: { mr: "मध्यवर्ती बस स्टँड (CBS)", en: "CBS" }, time: "०९:१५ AM", status: "passed" },
@@ -509,7 +508,7 @@
                 busName: { mr: "बस १०३ - एन-१ स्पेशल", en: "Bus 103 - N-1 Special" },
                 routeText: { mr: "सिडको एन-१ ➔ सिडको एन-५ ➔ सिंहासन चौक", en: "CIDCO N-1 ➔ CIDCO N-5 ➔ Sinhasan Chowk" },
                 departureTimes: "०८:३० वा., ११:०० वा.",
-                crowd: "high", crowdText: "पूर्ण गर्दी / फुल (High Crowd)",
+                crowd: "high", crowdText: { mr: "पूर्ण गर्दी / फुल (High Crowd)", en: "High Crowd" },
                 lat: 19.8650, lng: 75.3550,
                 stops: [
                     { name: { mr: "सिडको एन-१ (CIDCO N-1)", en: "CIDCO N-1" }, time: "०८:३० AM", status: "passed" },
@@ -613,8 +612,10 @@
         }
 
         var map, busMarker, activeFirebaseRef = null;
+        let currentlyDisplayedBusId = null;
 
         function displayBusResult(matchedBus) {
+            currentlyDisplayedBusId = matchedBus.id;
             document.getElementById('resultCard').style.display = "block";
             document.getElementById('map').style.display = "block";
 
@@ -622,9 +623,11 @@
             document.getElementById('busRouteSub').innerText = (currentLang === 'mr' ? "मार्ग: " : "Route: ") + matchedBus.routeText[currentLang];
 
             let dist = calculateDistance(userLatLng ? userLatLng[0] : matchedBus.lat, userLatLng ? userLatLng[1] : matchedBus.lng, matchedBus.lat, matchedBus.lng);
-            document.getElementById('etaBox').innerHTML = `📍 बस अंदाजे ${dist} किमी अंतरावर आहे`;
+            let distanceText = currentLang === 'mr' ? `📍 बस अंदाजे ${dist} किमी अंतरावर आहे` : `📍 Bus is approximately ${dist} km away`;
+            document.getElementById('etaBox').innerHTML = distanceText;
 
-            document.getElementById('crowdStatusBox').innerHTML = `<span class="crowd-badge crowd-${matchedBus.crowd}">📊 ${matchedBus.crowdText}</span>`;
+            let crowdTextVal = typeof matchedBus.crowdText === 'object' ? matchedBus.crowdText[currentLang] : matchedBus.crowdText;
+            document.getElementById('crowdStatusBox').innerHTML = `<span class="crowd-badge crowd-${matchedBus.crowd}">📊 ${crowdTextVal}</span>`;
 
             let timelineHTML = "";
             matchedBus.stops.forEach(stop => {
@@ -660,11 +663,14 @@
         function findBusByStop() {
             let stopVal = document.getElementById('singleStopInput').value.trim().toLowerCase();
             document.querySelectorAll('.suggestions-list').forEach(el => el.innerHTML = "");
-            if (!stopVal) { alert("कृपया बस स्टॉप टाका!"); return; }
+            if (!stopVal) { 
+                alert(currentLang === 'mr' ? "कृपया बस स्टॉप टाका!" : "Please enter a bus stop!"); 
+                return; 
+            }
 
-            let matchedBus = routesData.find(r => r.stops.some(stop => stop.name.mr.toLowerCase().includes(stopVal)));
+            let matchedBus = routesData.find(r => r.stops.some(stop => stop.name.mr.toLowerCase().includes(stopVal) || stop.name.en.toLowerCase().includes(stopVal)));
             if (matchedBus) displayBusResult(matchedBus);
-            else alert("बस सापडली नाही!");
+            else alert(currentLang === 'mr' ? "बस सापडली नाही!" : "Bus not found!");
         }
 
         function findBusByNumber() {
