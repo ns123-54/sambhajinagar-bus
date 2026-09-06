@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ॲडमिन पॅनल - ड्रायव्हर अप्रूवल</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --primary: #1d4ed8;
+            --accent: #16a34a;
+            --danger: #dc2626;
+            --border: #cbd5e1;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .main-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 16px;
+        }
+
+        .admin-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .admin-card h2 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 20px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .driver-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .driver-item {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .driver-info h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            color: var(--text-main);
+        }
+
+        .driver-info p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-approve {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+        }
+
+        .btn-reject {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-sub);
+            font-size: 15px;
+            padding: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+        .status-pending { background: #fef9c3; color: #854d0e; }
+        .status-approved { background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🛠️ बस ॲडमिन पॅनल (ड्रायव्हर अप्रूवल)</h1>
+    </div>
+
+    <div class="main-container">
+        <div class="admin-card">
+            <h2>प्रवेश करू इच्छिणारे ड्रायव्हर</h2>
+            <div id="driverContainer" class="driver-list">
+                <div class="no-data">डेटा लोड होत आहे...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            databaseURL: "https://sambhajinagar-live-bus-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Firebase कडून ड्रायव्हरची यादी आणणे
+        const driversRef = db.ref('drivers_requests');
+
+        driversRef.on('value', (snapshot) => {
+            const container = document.getElementById('driverContainer');
+            container.innerHTML = "";
+
+            const data = snapshot.val();
+            if (!data) {
+                container.innerHTML = `<div class="no-data">सध्या कोणतेही नवीन ड्रायव्हर रिक्वेस्ट नाही.</div>`;
+                return;
+            }
+
+            Object.keys(data).forEach(driverId => {
+                const driver = data[driverId];
+                
+                let statusClass = driver.status === 'approved' ? 'status-approved' : 'status-pending';
+                let statusText = driver.status === 'approved' ? 'परवानगी दिली आहे ✅' : 'प्रतिक्षाधीन (Pending) ⏳';
+
+                let itemHTML = `
+                    <div class="driver-item">
+                        <div class="driver-info">
+                            <h3>🚍 ${driver.busName || 'बस'} - ${driver.driverName || 'नाव नाही'}</h3>
+                            <p>मोबाईल: ${driver.phone || 'उपलब्ध नाही'}</p>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn-approve" onclick="updateStatus('${driverId}', 'approved')">Approve</button>
+                            <button class="btn-reject" onclick="removeDriver('${driverId}')">Reject</button>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += itemHTML;
+            });
+        });
+
+        // ड्रायव्हरला परवानगी देण्याची फंक्शन
+        function updateStatus(driverId, newStatus) {
+            db.ref(`drivers_requests/${driverId}`).update({
+                status: newStatus
+            }).then(() => {
+                alert("ड्रायव्हरचे स्टेटस अपडेट झाले!");
+            }).catch(error => {
+                alert("एरर आला: " + error.message);
+            });
+        }
+
+        // ड्रायव्हरची रिक्वेस्ट डिलीट (नाकारणे) करण्याची फंक्शन
+        function removeDriver(driverId) {
+            if (confirm("तुम्हाला खरोखर ही रिक्वेस्ट डिलीट करायची आहे का?")) {
+                db.ref(`drivers_requests/${driverId}`).remove().then(() => {
+                    alert("रिक्वेस्ट नाकारली/काढून टाकली आहे!");
+                });
+            }
+        }
+    </script>
+</body>
+</html>
